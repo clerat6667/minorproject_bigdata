@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberSec Big Data SOC | Real-Time Threat Analytics</title>
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for responsive security analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            cyber: {
+              900: '#0a0d14',
+              800: '#101522',
+              700: '#171f33',
+              600: '#232e4a',
+              accent: '#38bdf8',
+              alert: '#f43f5e',
+              warning: '#f59e0b',
+              success: '#10b981',
+              card: '#131b2e'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #080c16; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+    .glass-card { background: rgba(16, 23, 41, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.07); }
+    .terminal-scroll::-webkit-scrollbar { width: 6px; }
+    .terminal-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6)); }
+      50% { opacity: 0.6; filter: drop-shadow(0 0 2px rgba(56, 189, 248, 0.2)); }
+    }
+    .live-dot { animation: pulse-glow 2s infinite ease-in-out; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION & STATUS BAR -->
+  <header class="glass-card sticky top-0 z-50 px-6 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center space-x-3">
+      <div class="w-3 h-3 rounded-full bg-cyan-400 live-dot"></div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          <span>CYBER THREAT DETECTION & BIG DATA ANALYTICS</span>
+          <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono">SOC LIVE</span>
+        </h1>
+        <p class="text-xs text-slate-400">Department of AI & Data Science • University College of Engineering Thodupuzha</p>
+      </div>
+    </div>
+
+    <!-- Cluster Real-Time Health Summary Badges -->
+    <div id="health-quick-bar" class="flex flex-wrap items-center gap-2 text-xs">
+      <div class="px-2.5 py-1 rounded bg-slate-800/80 border border-slate-700 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-slate-500" id="badge-kafka-dot"></span>
+        <span class="text-slate-300 font-mono">Kafka</span>
+      </div>
+      <div class="px-2.5 py-1 rounded bg-slate-800/80 border border-slate-700 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-slate-500" id="badge-hdfs-dot"></span>
+        <span class="text-slate-300 font-mono">HDFS</span>
+      </div>
+      <div class="px-2.5 py-1 rounded bg-slate-800/80 border border-slate-700 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-slate-500" id="badge-spark-dot"></span>
+        <span class="text-slate-300 font-mono">Spark</span>
+      </div>
+      <div class="px-2.5 py-1 rounded bg-slate-800/80 border border-slate-700 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-slate-500" id="badge-zeek-dot"></span>
+        <span class="text-slate-300 font-mono">Zeek</span>
+      </div>
+      <div class="px-2.5 py-1 rounded bg-slate-800/80 border border-slate-700 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-slate-500" id="badge-suricata-dot"></span>
+        <span class="text-slate-300 font-mono">Suricata</span>
+      </div>
+      <div class="px-2.5 py-1 rounded bg-slate-800/80 border border-slate-700 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-slate-500" id="badge-cti-dot"></span>
+        <span class="text-slate-300 font-mono">CTI</span>
+      </div>
+    </div>
+
+    <!-- WebSocket Connectivity Indicator & Attack Initiator Link -->
+    <div class="flex items-center gap-3 text-xs font-mono">
+      <a href="http://localhost:8050" target="_blank" class="px-3 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold flex items-center gap-1.5 transition">
+        <span>⚡ Launch Attack Initiator (Port 8050)</span>
+        <span class="text-xs">↗</span>
+      </a>
+      <button onclick="window.print()" class="px-3 py-1 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 font-bold flex items-center gap-1.5 transition">
+        <span>🖨️ Print UI</span>
+      </button>
+      <a href="/api/export/audit-text" class="px-3 py-1 rounded bg-slate-500/20 hover:bg-slate-500/30 text-slate-300 border border-slate-500/40 font-bold flex items-center gap-1.5 transition">
+        <span>📝 Formal Audit (.txt)</span>
+      </a>
+      <a href="/api/export/excel" class="px-3 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1.5 transition">
+        <span>📊 Audit Statement (Excel)</span>
+      </a>
+      <a href="/api/powerbi/dataset" target="_blank" class="px-3 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1.5 transition">
+        <span>📈 Power BI</span>
+      </a>
+      <span id="ws-status" class="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+        Connecting...
+      </span>
+      <span id="clock" class="text-slate-400">00:00:00 UTC</span>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-slate-900/60 border-b border-slate-800 px-6 py-2 flex flex-wrap gap-2 text-sm font-medium">
+    <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn px-3 py-1.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Overview & Streams</button>
+    <button onclick="switchTab('alerts')" id="tab-alerts" class="tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white">Threat Alerts & Incidents</button>
+    <button onclick="switchTab('pipeline')" id="tab-pipeline" class="tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-cyan-400"></span> Big Data Pipeline & HDFS
+    </button>
+    <button onclick="switchTab('analytics')" id="tab-analytics" class="tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white">Anomaly Analytics</button>
+    <button onclick="switchTab('cti')" id="tab-cti" class="tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white">Threat Intelligence (CTI)</button>
+    <button onclick="switchTab('health')" id="tab-health" class="tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white">Cluster Health</button>
+  </nav>
+
+  <!-- MAIN VIEW CONTAINER -->
+  <main class="flex-1 p-6 space-y-6 max-w-[1700px] w-full mx-auto">
+
+    <!-- KPI OVERVIEW CARDS -->
+    <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+      <div class="glass-card p-4 rounded-xl border border-slate-800">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Throughput</p>
+        <div class="mt-1 flex items-baseline justify-between">
+          <span id="kpi-eps" class="text-2xl font-bold font-mono text-cyan-400">0.0</span>
+          <span class="text-xs text-slate-500 font-mono">evt/sec</span>
+        </div>
+      </div>
+      <div class="glass-card p-4 rounded-xl border border-slate-800">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Total Events</p>
+        <div class="mt-1">
+          <span id="kpi-total-events" class="text-2xl font-bold font-mono text-white">0</span>
+        </div>
+      </div>
+      <div class="glass-card p-4 rounded-xl border border-slate-800">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Active Alerts</p>
+        <div class="mt-1 flex items-baseline justify-between">
+          <span id="kpi-active-alerts" class="text-2xl font-bold font-mono text-amber-400">0</span>
+          <span class="text-xs text-amber-500/80 font-mono">Real-time</span>
+        </div>
+      </div>
+      <div class="glass-card p-4 rounded-xl border border-slate-800">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Critical Threats</p>
+        <div class="mt-1 flex items-baseline justify-between">
+          <span id="kpi-critical" class="text-2xl font-bold font-mono text-rose-500">0</span>
+          <span class="text-xs text-rose-500/80 font-mono">Immediate</span>
+        </div>
+      </div>
+      <div class="glass-card p-4 rounded-xl border border-slate-800">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">ML Anomalies</p>
+        <div class="mt-1 flex items-baseline justify-between">
+          <span id="kpi-anomalies" class="text-2xl font-bold font-mono text-purple-400">0</span>
+          <span class="text-xs text-purple-400/80 font-mono">Detected</span>
+        </div>
+      </div>
+      <div class="glass-card p-4 rounded-xl border border-slate-800">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">CTI Matches</p>
+        <div class="mt-1 flex items-baseline justify-between">
+          <span id="kpi-iocs" class="text-2xl font-bold font-mono text-red-400">0</span>
+          <span class="text-xs text-red-400/80 font-mono">Flagged</span>
+        </div>
+      </div>
+      <div class="glass-card p-4 rounded-xl border border-slate-800">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Unique Sources</p>
+        <div class="mt-1">
+          <span id="kpi-unique-sources" class="text-2xl font-bold font-mono text-slate-200">0</span>
+        </div>
+      </div>
+      <div class="glass-card p-4 rounded-xl border border-slate-800">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-medium">Lab Targets</p>
+        <div class="mt-1">
+          <span id="kpi-unique-dest" class="text-2xl font-bold font-mono text-emerald-400">0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 1: OVERVIEW & STREAMS -->
+    <div id="view-overview" class="space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Live Real-Time Telemetry Feed -->
+        <div class="glass-card rounded-xl p-5 border border-slate-800 flex flex-col h-[520px]">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h2 class="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 live-dot"></span>
+              LIVE NETWORK EVENT STREAM (Zeek / Suricata)
+            </h2>
+            <span class="text-xs font-mono text-slate-400">Kafka Topic: network-events</span>
+          </div>
+          <div id="live-events-container" class="flex-1 overflow-y-auto terminal-scroll mt-3 space-y-2 pr-1 font-mono text-xs">
+            <div class="text-slate-500 py-8 text-center italic">Awaiting network telemetry from Kafka topics...</div>
+          </div>
+        </div>
+
+        <!-- Real-Time Alerts Feed -->
+        <div class="glass-card rounded-xl p-5 border border-slate-800 flex flex-col h-[520px]">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h2 class="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500 live-dot"></span>
+              REAL-TIME THREAT ALERTS (Spark / Suricata)
+            </h2>
+            <span class="text-xs font-mono text-rose-400">Kafka Topic: threat-alerts</span>
+          </div>
+          <div id="live-alerts-container" class="flex-1 overflow-y-auto terminal-scroll mt-3 space-y-2 pr-1 font-mono text-xs">
+            <div class="text-slate-500 py-8 text-center italic">No active alerts. System baseline normal.</div>
+          </div>
+        </div>
+
+        <!-- High-Confidence Correlated Incidents -->
+        <div class="glass-card rounded-xl p-5 border border-slate-800 flex flex-col h-[520px]">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h2 class="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              CORRELATED INCIDENTS (Multi-Source Cluster)
+            </h2>
+            <span class="text-xs font-mono text-amber-400">FP Reduced</span>
+          </div>
+          <div id="live-incidents-container" class="flex-1 overflow-y-auto terminal-scroll mt-3 space-y-3 pr-1 text-xs">
+            <div class="text-slate-500 py-8 text-center italic">No open incidents.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 2: THREAT ALERTS & INCIDENTS TABLE -->
+    <div id="view-alerts" class="hidden space-y-6">
+      <div class="glass-card rounded-xl p-5 border border-slate-800">
+        <h2 class="text-base font-semibold text-white mb-4 flex items-center justify-between">
+          <span>Active Threat Alerts & Classifications</span>
+          <span class="text-xs font-mono text-slate-400">Spark Structured Streaming ML & Rule Aggregations</span>
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-slate-800/60 text-slate-400 uppercase text-[10px] tracking-wider">
+              <tr>
+                <th class="p-3">Timestamp</th>
+                <th class="p-3">Threat Type</th>
+                <th class="p-3">Severity</th>
+                <th class="p-3">Source IP</th>
+                <th class="p-3">Target IP</th>
+                <th class="p-3">Confidence</th>
+                <th class="p-3">Detection Engine</th>
+                <th class="p-3">Evidence Details</th>
+              </tr>
+            </thead>
+            <tbody id="alerts-table-body" class="divide-y divide-slate-800">
+              <tr><td colspan="8" class="p-4 text-center text-slate-500">No threat alerts recorded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: BIG DATA PIPELINE & HDFS (Clean Analytics, no terminal) -->
+    <div id="view-pipeline" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- HDFS Storage Analytics -->
+        <div class="glass-card rounded-xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              Apache Hadoop HDFS Storage
+            </h3>
+            <span id="hdfs-status-tag" class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">ONLINE</span>
+          </div>
+          <div class="mt-4 space-y-3 font-mono text-xs">
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Total HDFS Capacity:</span>
+              <span id="hdfs-total" class="text-white font-bold">-- GB</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Used Storage:</span>
+              <span id="hdfs-used" class="text-emerald-400 font-bold">-- MB</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Remaining Space:</span>
+              <span id="hdfs-free" class="text-white font-bold">-- GB</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Total Files / Inodes:</span>
+              <span id="hdfs-files" class="text-cyan-400 font-bold">--</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Processed Batch Slices:</span>
+              <span id="hdfs-batches" class="text-purple-400 font-bold">--</span>
+            </div>
+          </div>
+          <div class="mt-4">
+            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">HDFS Directory Hierarchy:</h4>
+            <div id="hdfs-dir-list" class="bg-slate-950 p-3 rounded-lg font-mono text-[11px] text-slate-300 space-y-1 overflow-x-auto">
+              <div class="text-slate-500">Loading directory tree...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Apache Spark Structured Streaming Engine -->
+        <div class="glass-card rounded-xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              Apache Spark 3.5.1 Engine
+            </h3>
+            <span id="spark-status-tag" class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">ONLINE</span>
+          </div>
+          <div class="mt-4 space-y-3 font-mono text-xs">
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Spark Master Version:</span>
+              <span id="spark-ver" class="text-white font-bold">3.5.1</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Alive Cluster Workers:</span>
+              <span id="spark-workers" class="text-emerald-400 font-bold">--</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Allocated CPU Cores:</span>
+              <span id="spark-cores" class="text-cyan-400 font-bold">--</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Allocated RAM Memory:</span>
+              <span id="spark-memory" class="text-white font-bold">--</span>
+            </div>
+          </div>
+          <div class="mt-4">
+            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Active Streaming Applications:</h4>
+            <div id="spark-apps-list" class="bg-slate-950 p-3 rounded-lg font-mono text-[11px] text-slate-300 space-y-2">
+              <div class="text-slate-500">Loading streaming applications...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kafka Stream Broker & Topics -->
+        <div class="glass-card rounded-xl p-5 border border-slate-800">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+              Apache Kafka 3.7.1 Broker
+            </h3>
+            <span id="kafka-status-tag" class="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">ONLINE</span>
+          </div>
+          <div class="mt-4 space-y-3 font-mono text-xs">
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Broker Cluster Address:</span>
+              <span id="kafka-broker" class="text-white font-bold">kafka:9092</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Active Topics Count:</span>
+              <span id="kafka-topics-count" class="text-cyan-400 font-bold">--</span>
+            </div>
+          </div>
+          <div class="mt-4">
+            <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Active Kafka Topics:</h4>
+            <div id="kafka-topics-list" class="bg-slate-950 p-3 rounded-lg font-mono text-[11px] text-slate-300 space-y-1.5 max-h-[220px] overflow-y-auto terminal-scroll">
+              <div class="text-slate-500">Loading topics...</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- End-to-End Pipeline Data Flow Visualizer -->
+      <div class="glass-card rounded-xl p-5 border border-slate-800">
+        <h3 class="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+          <span>REAL-TIME BIG DATA CYBERSECURITY ARCHITECTURE WORKFLOW</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-3 text-center text-xs font-mono">
+          <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+            <div class="text-slate-400 text-[10px] uppercase">1. Ingestion</div>
+            <div class="text-cyan-400 font-bold mt-1">Zeek & Suricata</div>
+            <div class="text-[10px] text-slate-500 mt-1">eth0 Raw Packets</div>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+            <div class="text-slate-400 text-[10px] uppercase">2. Shippers</div>
+            <div class="text-cyan-400 font-bold mt-1">Telemetry Daemon</div>
+            <div class="text-[10px] text-slate-500 mt-1">Multi-Thread Tail</div>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+            <div class="text-slate-400 text-[10px] uppercase">3. Message Bus</div>
+            <div class="text-cyan-400 font-bold mt-1">Apache Kafka</div>
+            <div class="text-[10px] text-slate-500 mt-1">KRaft 9092 & 29092</div>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+            <div class="text-slate-400 text-[10px] uppercase">4. Stream Analytics</div>
+            <div class="text-amber-400 font-bold mt-1">Apache Spark</div>
+            <div class="text-[10px] text-slate-500 mt-1">Sliding Windows & ML</div>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+            <div class="text-slate-400 text-[10px] uppercase">5. Big Data Lake</div>
+            <div class="text-emerald-400 font-bold mt-1">Hadoop HDFS</div>
+            <div class="text-[10px] text-slate-500 mt-1">/security-data Parquet</div>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+            <div class="text-slate-400 text-[10px] uppercase">6. Correlation & SOC</div>
+            <div class="text-rose-400 font-bold mt-1">FastAPI SOC</div>
+            <div class="text-[10px] text-slate-500 mt-1">WebSocket Push</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: ANOMALY ANALYTICS -->
+    <div id="view-analytics" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass-card p-5 rounded-xl border border-slate-800">
+          <h3 class="text-sm font-semibold text-white mb-3">Protocol Distribution</h3>
+          <div class="h-64 flex items-center justify-center">
+            <canvas id="chart-protocols"></canvas>
+          </div>
+        </div>
+        <div class="glass-card p-5 rounded-xl border border-slate-800">
+          <h3 class="text-sm font-semibold text-white mb-3">Threat Classification Breakdown</h3>
+          <div class="h-64 flex items-center justify-center">
+            <canvas id="chart-threats"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: THREAT INTELLIGENCE (CTI) -->
+    <div id="view-cti" class="hidden space-y-6">
+      <div class="glass-card p-5 rounded-xl border border-slate-800">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-white">Cyber Threat Intelligence (CTI) Catalog</h2>
+            <p class="text-xs text-slate-400">MISP & OpenCTI Indicator Feeds for Correlation</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 font-mono">Active Feed</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-slate-800/60 text-slate-400 uppercase text-[10px] tracking-wider">
+              <tr>
+                <th class="p-3">Indicator</th>
+                <th class="p-3">Type</th>
+                <th class="p-3">Threat Actor</th>
+                <th class="p-3">Campaign</th>
+                <th class="p-3">Severity</th>
+                <th class="p-3">Confidence</th>
+                <th class="p-3">Description</th>
+              </tr>
+            </thead>
+            <tbody id="cti-table-body" class="divide-y divide-slate-800">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: INFRASTRUCTURE HEALTH -->
+    <div id="view-health" class="hidden space-y-6">
+      <div class="glass-card p-5 rounded-xl border border-slate-800">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-base font-semibold text-white">Cluster Infrastructure Real-Time Health</h2>
+            <p class="text-xs text-slate-400">Genuine socket & HTTP operational probes. Never faked or simulated.</p>
+          </div>
+          <button onclick="refreshHealth()" class="text-xs px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1 font-mono">
+            ↻ Refresh Probes
+          </button>
+        </div>
+        <div id="health-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // Tab Switching
+    function switchTab(tab) {
+      ['overview', 'alerts', 'pipeline', 'analytics', 'cti', 'health'].forEach(t => {
+        const view = document.getElementById(`view-${t}`);
+        const btn = document.getElementById(`tab-${t}`);
+        if (view && btn) {
+          if (t === tab) {
+            view.classList.remove('hidden');
+            btn.className = "tab-btn px-3 py-1.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30";
+          } else {
+            view.classList.add('hidden');
+            btn.className = "tab-btn px-3 py-1.5 rounded-md text-slate-400 hover:text-white";
+          }
+        }
+      });
+      if (tab === 'analytics') renderCharts();
+      if (tab === 'health') refreshHealth();
+      if (tab === 'pipeline') refreshPipeline();
+    }
+
+    // Clock
+    setInterval(() => {
+      document.getElementById('clock').innerText = new Date().toUTCString().split(' ')[4] + ' UTC';
+    }, 1000);
+
+    // Protocol & Threat Distribution State
+    const protocolCounts = { TCP: 0, UDP: 0, HTTP: 0, DNS: 0, OTHER: 0 };
+    const threatCounts = { PORT_SCAN: 0, BRUTE_FORCE: 0, DOS_LIKE: 0, DNS_ANOMALY: 0, IDS_SIGNATURE_MATCH: 0, SUSPICIOUS_CONNECTION: 0 };
+    let protoChart = null, threatChart = null;
+
+    function renderCharts() {
+      if (!protoChart) {
+        const ctxP = document.getElementById('chart-protocols').getContext('2d');
+        protoChart = new Chart(ctxP, {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(protocolCounts),
+            datasets: [{
+              data: Object.values(protocolCounts),
+              backgroundColor: ['#38bdf8', '#818cf8', '#34d399', '#f43f5e', '#a855f7']
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } } }
+        });
+      } else {
+        protoChart.data.datasets[0].data = Object.values(protocolCounts);
+        protoChart.update();
+      }
+
+      if (!threatChart) {
+        const ctxT = document.getElementById('chart-threats').getContext('2d');
+        threatChart = new Chart(ctxT, {
+          type: 'bar',
+          data: {
+            labels: Object.keys(threatCounts),
+            datasets: [{
+              label: 'Alerts',
+              data: Object.values(threatCounts),
+              backgroundColor: '#f43f5e'
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } }, plugins: { legend: { display: false } } }
+        });
+      } else {
+        threatChart.data.datasets[0].data = Object.values(threatCounts);
+        threatChart.update();
+      }
+    }
+
+    // WebSocket Stream
+    let ws = null;
+    function connectWebSocket() {
+      const loc = window.location;
+      const wsUrl = (loc.protocol === 'https:' ? 'wss://' : 'ws://') + loc.host + '/ws/stream';
+      const wsStatus = document.getElementById('ws-status');
+
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        wsStatus.className = "px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        wsStatus.innerText = "WS Connected";
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'SNAPSHOT') {
+            updateStats(msg.stats);
+            if (msg.recent_alerts) msg.recent_alerts.forEach(addAlertCard);
+            if (msg.recent_events) msg.recent_events.forEach(addEventCard);
+            if (msg.incidents) msg.incidents.forEach(addIncidentCard);
+          } else if (msg.type === 'NEW_EVENT') {
+            addEventCard(msg.event);
+            updateStats(msg.stats);
+          } else if (msg.type === 'NEW_ALERT') {
+            addAlertCard(msg.alert);
+            if (msg.incident) addIncidentCard(msg.incident);
+            updateStats(msg.stats);
+          }
+        } catch (e) {
+          console.error("WS Parse error", e);
+        }
+      };
+
+      ws.onclose = () => {
+        wsStatus.className = "px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30";
+        wsStatus.innerText = "WS Reconnecting...";
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
+    function updateStats(stats) {
+      if (!stats) return;
+      document.getElementById('kpi-eps').innerText = (stats.events_per_sec || 0).toFixed(1);
+      document.getElementById('kpi-total-events').innerText = stats.total_events || 0;
+      document.getElementById('kpi-active-alerts').innerText = stats.active_alerts || 0;
+      document.getElementById('kpi-critical').innerText = stats.critical_alerts || 0;
+      document.getElementById('kpi-anomalies').innerText = stats.anomalies_detected || 0;
+      document.getElementById('kpi-iocs').innerText = stats.ioc_matches || 0;
+      document.getElementById('kpi-unique-sources').innerText = stats.unique_sources || 0;
+      document.getElementById('kpi-unique-dest').innerText = stats.unique_destinations || 0;
+    }
+
+    function addEventCard(evt) {
+      const container = document.getElementById('live-events-container');
+      const proto = evt.protocol || 'TCP';
+      protocolCounts[proto] = (protocolCounts[proto] || 0) + 1;
+
+      const card = document.createElement('div');
+      card.className = "p-2.5 rounded bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition";
+      card.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="text-cyan-400 font-bold">${evt.event_type || 'CONNECTION'}</span>
+          <span class="text-[10px] text-slate-500">${evt.timestamp ? evt.timestamp.slice(11, 19) : ''}</span>
+        </div>
+        <div class="mt-1 flex items-center justify-between text-slate-300">
+          <span>${evt.source_ip}:${evt.source_port}</span>
+          <span class="text-slate-500">→</span>
+          <span>${evt.destination_ip}:${evt.destination_port}</span>
+        </div>
+        <div class="mt-1 flex items-center justify-between text-[10px] text-slate-400">
+          <span>Proto: ${proto}</span>
+          <span>${evt.bytes_sent || 0}B sent | ${evt.bytes_received || 0}B recv</span>
+        </div>
+      `;
+      container.insertBefore(card, container.firstChild);
+      if (container.children.length > 30) container.removeChild(container.lastChild);
+    }
+
+    function addAlertCard(alt) {
+      const container = document.getElementById('live-alerts-container');
+      const sev = alt.severity || 'MEDIUM';
+      const sevColor = sev === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : (sev === 'HIGH' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30');
+
+      threatCounts[alt.threat_type] = (threatCounts[alt.threat_type] || 0) + 1;
+
+      const card = document.createElement('div');
+      card.className = `p-2.5 rounded bg-slate-900/90 border ${sev === 'CRITICAL' ? 'border-rose-500/50' : 'border-slate-800'}`;
+      card.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-rose-400">${alt.threat_type}</span>
+          <span class="px-1.5 py-0.5 rounded text-[10px] border ${sevColor}">${sev} (${Math.round(alt.confidence * 100)}%)</span>
+        </div>
+        <div class="mt-1 flex items-center justify-between text-slate-300">
+          <span>${alt.source_ip}</span>
+          <span class="text-slate-500">→</span>
+          <span>${alt.destination_ip}</span>
+        </div>
+        <div class="mt-1 text-[10px] text-slate-400">
+          ${(alt.evidence && alt.evidence[0]) || alt.detection_method || ''}
+        </div>
+      `;
+      container.insertBefore(card, container.firstChild);
+      if (container.children.length > 25) container.removeChild(container.lastChild);
+
+      // Append to Alerts Table
+      const tbody = document.getElementById('alerts-table-body');
+      const row = document.createElement('tr');
+      row.className = "hover:bg-slate-800/40";
+      row.innerHTML = `
+        <td class="p-3 text-slate-400">${alt.timestamp ? alt.timestamp.slice(11, 19) : ''}</td>
+        <td class="p-3 font-bold text-rose-400">${alt.threat_type}</td>
+        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] border ${sevColor}">${sev}</span></td>
+        <td class="p-3">${alt.source_ip}</td>
+        <td class="p-3">${alt.destination_ip}</td>
+        <td class="p-3 text-cyan-400">${Math.round(alt.confidence * 100)}%</td>
+        <td class="p-3 text-slate-400">${alt.detection_method}</td>
+        <td class="p-3 text-slate-300">${(alt.evidence || []).join('; ')}</td>
+      `;
+      tbody.insertBefore(row, tbody.firstChild);
+    }
+
+    function addIncidentCard(inc) {
+      const container = document.getElementById('live-incidents-container');
+      let card = document.getElementById(`inc-${inc.incident_id}`);
+      if (!card) {
+        card = document.createElement('div');
+        card.id = `inc-${inc.incident_id}`;
+        card.className = "p-3 rounded-lg bg-slate-900 border border-amber-500/30";
+        container.insertBefore(card, container.firstChild);
+      }
+      card.innerHTML = `
+        <div class="flex items-center justify-between font-mono">
+          <span class="text-amber-300 font-bold">${inc.incident_id}</span>
+          <span class="px-2 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 font-bold">${inc.severity}</span>
+        </div>
+        <div class="mt-1 font-mono text-xs text-slate-300">
+          Target IPs: ${(inc.destination_ips || []).join(', ')}
+        </div>
+        <div class="mt-1 flex flex-wrap gap-1">
+          ${(inc.threat_types || []).map(t => `<span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-300">${t}</span>`).join('')}
+        </div>
+        <div class="mt-2 text-[11px] text-slate-400 border-t border-slate-800 pt-1">
+          ${(inc.evidence || []).slice(0, 2).map(e => `• ${e}`).join('<br>')}
+        </div>
+      `;
+    }
+
+    // Big Data Pipeline Telemetry Refresh
+    async function refreshPipeline() {
+      try {
+        const res = await fetch('/api/pipeline');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        // HDFS
+        if (data.hdfs) {
+          const h = data.hdfs;
+          document.getElementById('hdfs-status-tag').innerText = h.status;
+          document.getElementById('hdfs-total').innerText = `${h.total_gb} GB`;
+          document.getElementById('hdfs-used').innerText = `${h.used_mb} MB`;
+          document.getElementById('hdfs-free').innerText = `${h.remaining_gb} GB`;
+          document.getElementById('hdfs-files').innerText = h.total_files;
+          document.getElementById('hdfs-batches').innerText = `${h.processed_batches} Batches`;
+
+          const dirContainer = document.getElementById('hdfs-dir-list');
+          if (h.directories && h.directories.length > 0) {
+            dirContainer.innerHTML = h.directories.map(d => `
+              <div class="flex justify-between py-0.5">
+                <span class="text-emerald-400">📁 ${d.path}</span>
+                <span class="text-slate-500">${d.type} (${d.owner})</span>
+              </div>
+            `).join('');
+          } else {
+            dirContainer.innerHTML = `<div class="text-slate-500">Directories active in HDFS namespace.</div>`;
+          }
+        }
+
+        // Spark
+        if (data.spark) {
+          const s = data.spark;
+          document.getElementById('spark-status-tag').innerText = s.status;
+          document.getElementById('spark-ver').innerText = s.version;
+          document.getElementById('spark-workers').innerText = `${s.alive_workers} Active Worker`;
+          document.getElementById('spark-cores').innerText = `${s.cores_used} / ${s.cores_total} Cores`;
+          document.getElementById('spark-memory').innerText = `${s.memory_used_mb} / ${s.memory_total_mb} MB`;
+
+          const appContainer = document.getElementById('spark-apps-list');
+          if (s.active_applications && s.active_applications.length > 0) {
+            appContainer.innerHTML = s.active_applications.map(a => `
+              <div class="p-2 rounded bg-slate-900 border border-slate-800">
+                <div class="flex justify-between font-bold text-amber-300">
+                  <span>${a.name}</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">${a.state}</span>
+                </div>
+                <div class="mt-1 text-[10px] text-slate-400 flex justify-between">
+                  <span>App ID: ${a.id}</span>
+                  <span>Uptime: ${a.duration_sec}s</span>
+                </div>
+              </div>
+            `).join('');
+          } else {
+            appContainer.innerHTML = `<div class="text-slate-500">Spark Master active. Streaming queries submitting.</div>`;
+          }
+        }
+
+        // Kafka
+        if (data.kafka) {
+          const k = data.kafka;
+          document.getElementById('kafka-status-tag').innerText = k.status;
+          document.getElementById('kafka-broker').innerText = k.broker;
+          document.getElementById('kafka-topics-count').innerText = `${k.topics.length} Topics`;
+
+          const topicContainer = document.getElementById('kafka-topics-list');
+          if (k.topics && k.topics.length > 0) {
+            topicContainer.innerHTML = k.topics.map(t => `
+              <div class="flex items-center justify-between py-1 px-2 rounded bg-slate-900 border border-slate-800/80">
+                <span class="text-cyan-300"># ${t}</span>
+                <span class="text-[10px] text-slate-500 font-mono">KRaft Log Partitioned</span>
+              </div>
+            `).join('');
+          } else {
+            topicContainer.innerHTML = `<div class="text-slate-500">Broker online. Topics listening.</div>`;
+          }
+        }
+      } catch (err) {
+        console.error("Pipeline fetch error", err);
+      }
+    }
+
+    // Health Refresh
+    async function refreshHealth() {
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        const grid = document.getElementById('health-grid');
+        grid.innerHTML = '';
+        data.forEach(s => {
+          const isOnline = s.status === 'ONLINE';
+          const isDegraded = s.status === 'DEGRADED';
+          const color = isOnline ? 'emerald' : (isDegraded ? 'amber' : 'rose');
+
+          // Update quick top badge dot
+          const shortKey = s.name.toLowerCase().includes('kafka') ? 'kafka' :
+                           s.name.toLowerCase().includes('hdfs') ? 'hdfs' :
+                           s.name.toLowerCase().includes('spark') ? 'spark' :
+                           s.name.toLowerCase().includes('zeek') ? 'zeek' :
+                           s.name.toLowerCase().includes('suricata') ? 'suricata' :
+                           s.name.toLowerCase().includes('cti') ? 'cti' : null;
+          if (shortKey) {
+            const dot = document.getElementById(`badge-${shortKey}-dot`);
+            if (dot) dot.className = `w-2 h-2 rounded-full bg-${color}-500`;
+          }
+
+          const card = document.createElement('div');
+          card.className = "p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between";
+          card.innerHTML = `
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-sm text-white">${s.name}</span>
+                <span class="px-2 py-0.5 rounded text-xs font-mono font-bold bg-${color}-500/20 text-${color}-400 border border-${color}-500/30">
+                  ${s.status}
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-2">${s.details || s.error || 'No additional telemetry'}</p>
+            </div>
+            <div class="mt-4 pt-2 border-t border-slate-800 flex items-center justify-between text-xs font-mono text-slate-500">
+              <span>Latency: ${s.latency_ms !== null ? s.latency_ms + 'ms' : 'N/A'}</span>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      } catch (e) {
+        console.error("Health probe error", e);
+      }
+    }
+
+    // Load CTI
+    async function loadCTI() {
+      try {
+        const res = await fetch('/api/cti/indicators');
+        const data = await res.json();
+        const tbody = document.getElementById('cti-table-body');
+        tbody.innerHTML = '';
+        data.forEach(ind => {
+          const row = document.createElement('tr');
+          row.className = "hover:bg-slate-800/40";
+          row.innerHTML = `
+            <td class="p-3 font-bold text-red-400">${ind.indicator}</td>
+            <td class="p-3 text-slate-400">${ind.type}</td>
+            <td class="p-3 text-amber-300">${ind.threat_actor}</td>
+            <td class="p-3 text-slate-300">${ind.campaign}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30">${ind.severity}</span></td>
+            <td class="p-3 text-cyan-400">${Math.round(ind.confidence * 100)}%</td>
+            <td class="p-3 text-slate-400">${ind.description}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (e) {
+        console.error("CTI load error", e);
+      }
+    }
+
+    // Init History Data
+    async function loadHistory() {
+      try {
+        const [eventsRes, alertsRes] = await Promise.all([
+          fetch('/api/events'),
+          fetch('/api/alerts')
+        ]);
+        const events = await eventsRes.json();
+        const alerts = await alertsRes.json();
+        events.reverse().forEach(evt => addEventCard(evt));
+        alerts.reverse().forEach(alt => addAlertCard(alt));
+        renderCharts();
+      } catch(e) {
+        console.error("History load error", e);
+      }
+    }
+
+    // Init
+    connectWebSocket();
+    refreshHealth();
+    loadCTI();
+    refreshPipeline();
+    loadHistory();
+    setInterval(refreshHealth, 5000);
+    setInterval(refreshPipeline, 5000);
+  </script>
+</body>
+</html>

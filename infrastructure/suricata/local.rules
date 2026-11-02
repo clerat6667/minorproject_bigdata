@@ -1,0 +1,7 @@
+# Suricata Local Detection Rules for Test Lab
+alert tcp any any -> any any (msg:"SURICATA SCAN Potential Nmap or Port Scan Syn Packet"; flags:S; threshold:type threshold, track by_src, count 10, seconds 5; classtype:attempted-recon; sid:1000001; rev:1;)
+alert tcp any any -> any 3000 (msg:"SURICATA HTTP Juice Shop Brute Force Attempt"; content:"POST"; http_method; content:"/rest/user/login"; http_uri; threshold:type threshold, track by_src, count 5, seconds 10; classtype:attempted-admin; sid:1000002; rev:1;)
+alert tcp any any -> any 3000 (msg:"SURICATA HTTP High Rate Burst Detected"; threshold:type threshold, track by_src, count 30, seconds 5; classtype:attempted-dos; sid:1000003; rev:1;)
+alert dns any any -> any any (msg:"SURICATA DNS Query for Known Malicious Indicator CTI"; dns.query; content:"malware-threat-lab.local"; nocase; classtype:trojan-activity; sid:1000004; rev:1;)
+alert ip 198.51.100.77 any -> any any (msg:"SURICATA IOC Match - Known Malicious Threat Actor IP (CTI Flagged)"; classtype:bad-unknown; sid:1000005; rev:1;)
+alert ip any any -> 198.51.100.77 any (msg:"SURICATA IOC Match - Connection to CTI Flagged Host"; classtype:bad-unknown; sid:1000006; rev:1;)

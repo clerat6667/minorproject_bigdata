@@ -1,0 +1,262 @@
+version: '3.8'
+
+networks:
+  cyber-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  namenode-data:
+  datanode-data:
+  zeek-logs:
+  suricata-logs:
+
+services:
+  # -------------------------------------------------------------
+  # 1. APACHE KAFKA (KRaft Mode - No Zookeeper Needed)
+  # -------------------------------------------------------------
+  kafka:
+    image: apache/kafka:3.7.1
+    container_name: cyber-kafka
+    networks:
+      cyber-net:
+        ipv4_address: 172.28.0.5
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@localhost:9093'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      CLUSTER_ID: '4L622nShTZaJQuje0Guvdg'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xmx384M -Xms128M"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # -------------------------------------------------------------
+  # 2. KAFKA TOPIC INITIALIZER
+  # -------------------------------------------------------------
+  kafka-init:
+    image: apache/kafka:3.7.1
+    container_name: cyber-kafka-init
+    networks:
+      - cyber-net
+    volumes:
+      - ./infrastructure/kafka/create_topics.sh:/opt/create_topics.sh:ro
+    command: /bin/bash /opt/create_topics.sh
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # -------------------------------------------------------------
+  # 3. APACHE HADOOP HDFS (NameNode & DataNode)
+  # -------------------------------------------------------------
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: cyber-hdfs-namenode
+    networks:
+      cyber-net:
+        ipv4_address: 172.28.0.10
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    environment:
+      CLUSTER_NAME: cyber-bigdata
+      CORE_CONF_fs_defaultFS: "hdfs://namenode:9000"
+      CORE_CONF_hadoop_http_staticuser_user: "root"
+      HDFS_CONF_dfs_webhdfs_enabled: "true"
+      HDFS_CONF_dfs_permissions_enabled: "false"
+      HADOOP_HEAPSIZE: "384"
+    volumes:
+      - namenode-data:/hadoop/dfs/name
+    healthcheck:
+      test: ["CMD-SHELL", "hdfs dfsadmin -safemode get | grep -q 'OFF' || hdfs dfsadmin -safemode leave || exit 0"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: cyber-hdfs-datanode
+    networks:
+      cyber-net:
+        ipv4_address: 172.28.0.11
+    ports:
+      - "9864:9864"
+    environment:
+      CORE_CONF_fs_defaultFS: "hdfs://namenode:9000"
+      HDFS_CONF_dfs_webhdfs_enabled: "true"
+      HDFS_CONF_dfs_permissions_enabled: "false"
+      HADOOP_HEAPSIZE: "384"
+    volumes:
+      - datanode-data:/hadoop/dfs/data
+    depends_on:
+      - namenode
+
+  hdfs-init:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: cyber-hdfs-init
+    networks:
+      - cyber-net
+    volumes:
+      - ./infrastructure/hadoop/init_hdfs.sh:/opt/init_hdfs.sh:ro
+    environment:
+      CORE_CONF_fs_defaultFS: "hdfs://namenode:9000"
+    command: /bin/bash /opt/init_hdfs.sh
+    depends_on:
+      - namenode
+      - datanode
+
+  # -------------------------------------------------------------
+  # 4. APACHE SPARK CLUSTER (Master & Worker)
+  # -------------------------------------------------------------
+  spark-master:
+    image: finsecure-spark-master:latest
+    container_name: cyber-spark-master
+    networks:
+      cyber-net:
+        ipv4_address: 172.28.0.15
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./streaming:/opt/streaming:ro
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master -h 0.0.0.0 -p 7077 --webui-port 8080
+
+  spark-worker:
+    image: finsecure-spark-master:latest
+    container_name: cyber-spark-worker
+    networks:
+      - cyber-net
+    volumes:
+      - ./streaming:/opt/streaming:ro
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    depends_on:
+      - spark-master
+
+
+
+  # -------------------------------------------------------------
+  # 5. TARGET APPLICATION (OWASP Juice Shop)
+  # -------------------------------------------------------------
+  juice-shop:
+    image: bkimminich/juice-shop:latest
+    container_name: cyber-target-juiceshop
+    networks:
+      cyber-net:
+        ipv4_address: 172.28.0.20
+    ports:
+      - "3000:3000"
+
+  # -------------------------------------------------------------
+  # 6. NETWORK MONITORING LAYER (Zeek & Suricata)
+  # -------------------------------------------------------------
+  zeek:
+    image: zeek/zeek:6.0
+    container_name: cyber-zeek
+    network_mode: "service:juice-shop"
+    volumes:
+      - ./infrastructure/zeek/local.zeek:/usr/local/zeek/share/zeek/site/local.zeek:ro
+      - zeek-logs:/var/log/zeek
+    working_dir: /var/log/zeek
+    command: /bin/bash -c "touch /var/log/zeek/conn.log /var/log/zeek/dns.log /var/log/zeek/http.log && zeek -i eth0 /usr/local/zeek/share/zeek/site/local.zeek"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    depends_on:
+      - juice-shop
+
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: cyber-suricata
+    network_mode: "service:juice-shop"
+    volumes:
+      - ./infrastructure/suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./infrastructure/suricata/local.rules:/etc/suricata/rules/local.rules:ro
+      - suricata-logs:/var/log/suricata
+    command: suricata -c /etc/suricata/suricata.yaml -i eth0
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    depends_on:
+      - juice-shop
+
+
+  # -------------------------------------------------------------
+  # 7. TELEMETRY SHIPPERS TO KAFKA
+  # -------------------------------------------------------------
+  telemetry-shipper:
+    image: python:3.11-slim
+    container_name: cyber-telemetry-shipper
+    networks:
+      - cyber-net
+    volumes:
+      - zeek-logs:/var/log/zeek:ro
+      - suricata-logs:/var/log/suricata:ro
+      - ./network_monitoring:/opt/network_monitoring:ro
+      - ./backend/requirements.txt:/opt/requirements.txt:ro
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      WEBHDFS_URL: "http://namenode:9870/webhdfs/v1"
+      ZEEK_LOG_DIR: "/var/log/zeek"
+      EVE_JSON_PATH: "/var/log/suricata/eve.json"
+    command: >
+      /bin/bash -c "pip install --no-cache-dir kafka-python-ng requests &&
+      python3 -u /opt/network_monitoring/zeek_shipper.py &
+      python3 -u /opt/network_monitoring/suricata_shipper.py &
+      wait"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      namenode:
+        condition: service_healthy
+
+  # -------------------------------------------------------------
+  # 8. OPERATIONAL BACKEND & DASHBOARD
+  # -------------------------------------------------------------
+  backend:
+    image: python:3.11-slim
+    container_name: cyber-backend
+    networks:
+      cyber-net:
+        ipv4_address: 172.28.0.30
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - zeek-logs:/var/log/zeek:ro
+      - suricata-logs:/var/log/suricata:ro
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      KAFKA_HOST: "kafka"
+      KAFKA_PORT: 9092
+      HDFS_HOST: "namenode"
+      HDFS_PORT: 9870
+      SPARK_HOST: "spark-master"
+      SPARK_PORT: 8080
+      JUICE_SHOP_URL: "http://juice-shop:3000"
+      ZEEK_LOG_DIR: "/var/log/zeek"
+      SURICATA_LOG_DIR: "/var/log/suricata"
+    working_dir: /app
+    command: /bin/bash -c "pip install --no-cache-dir -r /app/requirements.txt && export PYTHONPATH=/app && cd /app && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      namenode:
+        condition: service_healthy

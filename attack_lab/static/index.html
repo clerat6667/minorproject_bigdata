@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyber Range Attack Simulator | Threat Generator Console</title>
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            redteam: {
+              950: '#06070c',
+              900: '#0c0d18',
+              800: '#141624',
+              700: '#1e2136',
+              border: '#2a2d48',
+              accent: '#ef4444',
+              orange: '#f97316',
+              purple: '#a855f7'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #070913; color: #f1f5f9; font-family: 'Inter', sans-serif; }
+    .glass-card { background: rgba(14, 17, 31, 0.82); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .terminal-scroll::-webkit-scrollbar { width: 6px; }
+    .terminal-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.7)); }
+      50% { opacity: 0.5; filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.2)); }
+    }
+    .red-dot { animation: pulse-red 2s infinite ease-in-out; }
+    .btn-fire:hover { box-shadow: 0 0 16px rgba(239, 68, 68, 0.5); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP HEADER -->
+  <header class="glass-card sticky top-0 z-50 px-6 py-3.5 border-b border-red-950/80 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center space-x-3.5">
+      <div class="w-3.5 h-3.5 rounded-full bg-rose-500 red-dot"></div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2.5">
+          <span class="text-rose-500 font-black tracking-wider">CYBER RANGE</span>
+          <span class="text-slate-300">|</span>
+          <span>ATTACK INITIATOR & MULTI-PROTOCOL THREAT GENERATOR</span>
+          <span class="text-[11px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 font-mono font-semibold">PORT 8050</span>
+        </h1>
+        <p class="text-xs text-slate-400">Targeting OWASP Juice Shop Sandbox • Real Network Packets Emitted to Big Data Analytics Engine</p>
+      </div>
+    </div>
+
+    <!-- Target & Link Controls -->
+    <div class="flex flex-wrap items-center gap-3 text-xs font-mono">
+      <div class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-2">
+        <span class="text-slate-400">Target:</span>
+        <span id="target-url-label" class="text-cyan-400 font-bold">http://localhost:3000</span>
+        <span id="target-health-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+      </div>
+
+      <a href="http://localhost:8000" target="_blank" class="px-3.5 py-1.5 rounded-lg bg-cyan-950/70 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 flex items-center gap-1.5 transition font-semibold">
+        <span>Observe in SOC Dashboard (Port 8000)</span>
+        <span class="text-sm">↗</span>
+      </a>
+
+      <button onclick="launchCampaign()" id="btn-campaign" class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-500 hover:to-orange-500 text-white font-bold tracking-wider shadow-lg shadow-rose-900/30 flex items-center gap-2 transition">
+        <span>⚡ LAUNCH ALL ATTACKS CAMPAIGN</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN VIEW -->
+  <main class="flex-1 p-6 space-y-6 max-w-[1700px] w-full mx-auto">
+
+    <!-- CAMPAIGN STATUS BANNER (Hidden by default) -->
+    <div id="campaign-banner" class="hidden glass-card p-4 rounded-xl border border-rose-500/50 bg-rose-950/20 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-3 h-3 rounded-full bg-rose-500 red-dot"></div>
+        <div>
+          <span class="font-bold text-rose-300 text-sm">Automated Multi-Protocol Campaign in Progress</span>
+          <p id="campaign-status-text" class="text-xs text-slate-300 mt-0.5 font-mono">Executing attack stages sequentially across protocols...</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-xs font-mono">
+        <span id="campaign-progress" class="text-orange-400 font-bold">Stage 1 / 15</span>
+      </div>
+    </div>
+
+    <!-- FILTER BUTTONS -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap gap-2 text-xs font-mono">
+        <button onclick="filterCategory('ALL')" class="filter-btn px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40" data-cat="ALL">ALL PROTOCOLS (15)</button>
+        <button onclick="filterCategory('TCP')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800" data-cat="TCP">TCP PROTOCOL</button>
+        <button onclick="filterCategory('UDP')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800" data-cat="UDP">UDP PROTOCOL</button>
+        <button onclick="filterCategory('HTTP')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800" data-cat="HTTP">HTTP / WEB</button>
+        <button onclick="filterCategory('DNS')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800" data-cat="DNS">DNS EXFILTRATION</button>
+        <button onclick="filterCategory('ICMP')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800" data-cat="ICMP">ICMP DISCOVERY</button>
+        <button onclick="filterCategory('CTI')" class="filter-btn px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800" data-cat="CTI">CTI THREAT ACTORS</button>
+      </div>
+
+      <div class="text-xs font-mono text-slate-400 flex items-center gap-2">
+        <span>Attacks Dispatched:</span>
+        <span id="attacks-count" class="text-white font-bold bg-slate-800 px-2 py-0.5 rounded">0</span>
+      </div>
+    </div>
+
+    <!-- ATTACK SCENARIO CARDS GRID -->
+    <div id="scenarios-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <!-- Populated dynamically via JS -->
+    </div>
+
+    <!-- LIVE ATTACK EXECUTION LOG TERMINAL -->
+    <div class="glass-card rounded-xl p-5 border border-slate-800 flex flex-col h-[380px]">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+          <h2 class="text-sm font-bold text-white font-mono tracking-wide">ATTACK EXECUTION STDOUT & DIAGNOSTICS CONSOLE</h2>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="exec-status" class="text-xs font-mono text-slate-400">IDLE</span>
+          <button onclick="clearTerminal()" class="text-xs px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono">Clear</button>
+        </div>
+      </div>
+      <div id="terminal-output" class="flex-1 overflow-y-auto terminal-scroll mt-3 p-3 bg-black/80 rounded-lg font-mono text-xs text-slate-300 space-y-1 border border-slate-900">
+        <div class="text-slate-500">[System] Cyber Range Attack Initiator online.</div>
+        <div class="text-slate-500">[System] Click 'FIRE ATTACK' on any scenario above to dispatch controlled traffic towards OWASP Juice Shop.</div>
+        <div class="text-slate-500">[System] Real packets will traverse eth0 -> Zeek & Suricata -> Kafka -> Spark Streaming -> HDFS -> SOC Dashboard (Port 8000).</div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // Scenarios Catalog
+    const SCENARIOS = [
+      // TCP
+      {
+        id: "port_scan",
+        name: "TCP Reconnaissance Port Scan",
+        category: "TCP",
+        protocol: "TCP",
+        severity: "HIGH",
+        badge: "SYN Sweep",
+        description: "Sweeps 24 standard ports on the target host within a tight interval to discover active services.",
+        target: "Ports 21-9870 / TCP",
+        expected: "Suricata Rule 1000001 (Pri 2) & Spark Windowed Port Variance Anomaly"
+      },
+      {
+        id: "tcp_exhaustion",
+        name: "TCP Slowloris Session Exhaustion",
+        category: "TCP",
+        protocol: "TCP",
+        severity: "HIGH",
+        badge: "Connection Starvation",
+        description: "Establishes lingering partially-completed TCP connections with delayed keepalives to test session capacity limits.",
+        target: "Port 3000 / TCP Lingering",
+        expected: "Zeek Long Session Duration & Spark Flow Accumulation"
+      },
+      // UDP
+      {
+        id: "udp_burst",
+        name: "UDP Protocol Flooding Anomaly",
+        category: "UDP",
+        protocol: "UDP",
+        severity: "MEDIUM",
+        badge: "Protocol Shift",
+        description: "Sends bursts of pseudo-random UDP datagrams across multiple target ports to perturb normal TCP protocol distributions.",
+        target: "Ports 3000, 5000, 5353, 8080 / UDP",
+        expected: "Zeek conn.log Protocol Ratio Shift (Proto=UDP)"
+      },
+      // HTTP / WEB
+      {
+        id: "brute_force",
+        name: "Authentication Brute Force",
+        category: "HTTP",
+        protocol: "HTTP",
+        severity: "HIGH",
+        badge: "Credential Stuffing",
+        description: "Dispatches rapid sequential login attempts with common passwords against /rest/user/login generating real HTTP 401 bursts.",
+        target: "POST /rest/user/login",
+        expected: "Suricata Rule 1000002 (Pri 1) & Spark BRUTE_FORCE Classifier"
+      },
+      {
+        id: "sqli",
+        name: "SQL Injection (SQLi) Auth Bypass",
+        category: "HTTP",
+        protocol: "HTTP",
+        severity: "CRITICAL",
+        badge: "Auth Bypass",
+        description: "Executes SQL tautology payloads (' OR 1=1--) against authentication endpoints resulting in HTTP 200 administrative access.",
+        target: "POST /rest/user/login & GET /rest/products/search",
+        expected: "Suricata HTTP Payload Inspection & Zeek SQL Keyword Extraction"
+      },
+      {
+        id: "idor",
+        name: "Insecure Direct Object Ref (IDOR)",
+        category: "HTTP",
+        protocol: "HTTP",
+        severity: "HIGH",
+        badge: "Broken Access Control",
+        description: "Iterates through sequential user IDs (/api/Users/1..4) and shopping baskets (/rest/basket/1..2) to harvest unauthorized records.",
+        target: "GET /api/Users/{id} & /rest/basket/{id}",
+        expected: "Zeek http.log User Traversal Pattern & Spark Anomaly Scoring"
+      },
+      {
+        id: "xss",
+        name: "Cross-Site Scripting (XSS) Injection",
+        category: "HTTP",
+        protocol: "HTTP",
+        severity: "HIGH",
+        badge: "Script Injection",
+        description: "Injects reflective and DOM XSS audit payloads (<script>alert(1)<\\/script>) into search and parameter fields.",
+        target: "GET /rest/products/search?q=...",
+        expected: "Suricata Web Application Attack Signatures & Zeek script inspection"
+      },
+      {
+        id: "path_traversal",
+        name: "Directory Path Traversal / LFI",
+        category: "HTTP",
+        protocol: "HTTP",
+        severity: "CRITICAL",
+        badge: "File Inclusion",
+        description: "Executes directory traversal patterns (../../etc/passwd, null byte injections) against static asset and FTP endpoints.",
+        target: "GET /ftp/../../etc/passwd",
+        expected: "Suricata Path Traversal Detection & Zeek URI Parsing"
+      },
+      {
+        id: "http_burst",
+        name: "HTTP Request Flood (DoS Pattern)",
+        category: "HTTP",
+        protocol: "HTTP",
+        severity: "MEDIUM",
+        badge: "High-Rate Burst",
+        description: "Fires 40 concurrent HTTP requests in ~1 second against /api/Products generating an abrupt traffic spike (~38 req/sec).",
+        target: "GET /api/Products (Concurrency: 8)",
+        expected: "Suricata Rule 1000003 (Pri 2) & Spark Rate Burst Spike"
+      },
+      // DNS
+      {
+        id: "dns_anomaly",
+        name: "DNS Tunneling / Query Anomaly",
+        category: "DNS",
+        protocol: "DNS",
+        severity: "HIGH",
+        badge: "Data Exfiltration",
+        description: "Generates high-frequency bursts of high-entropy pseudo-random subdomains (*.tunnel-test.local) triggering NXDOMAINs.",
+        target: "UDP 53 / DNS Resolver",
+        expected: "Zeek dns.log Anomaly & Spark DNS_ANOMALY Classifier"
+      },
+      {
+        id: "dns_nxdomain",
+        name: "DNS DGA / NXDOMAIN Flood",
+        category: "DNS",
+        protocol: "DNS",
+        severity: "HIGH",
+        badge: "DGA Beaconing",
+        description: "Simulates malware Domain Generation Algorithm (DGA) query bursts across random TLDs resulting in bulk NXDOMAIN RCODEs.",
+        target: "Random DGA Domains (*.info, *.xyz)",
+        expected: "Spark DNS Frequency Variance & NXDOMAIN Spike"
+      },
+      // ICMP
+      {
+        id: "icmp_sweep",
+        name: "ICMP Host Discovery Sweep",
+        category: "ICMP",
+        protocol: "ICMP",
+        severity: "LOW",
+        badge: "Echo Probe",
+        description: "Transmits ICMP Echo requests across the network stack to test network discovery and ping sweep detection.",
+        target: "Target Host (ICMP Echo)",
+        expected: "Zeek conn.log Protocol=ICMP entry"
+      },
+      // CTI THREAT ACTORS
+      {
+        id: "cti_suite",
+        name: "Full Nation-State CTI Threat Suite",
+        category: "CTI",
+        protocol: "TCP",
+        severity: "CRITICAL",
+        badge: "All CTI Indicators",
+        description: "Dispatches indicators attributed to APT-29, FIN7, Lazarus Group, DarkSide Ransomware, and Volt Typhoon.",
+        target: "Flagged IPs & Staging Domains",
+        expected: "MISP/OpenCTI Attribution Match & Incident Escalation to CRITICAL"
+      },
+      {
+        id: "ioc_test",
+        name: "Known CTI Malicious Indicator (APT-29)",
+        category: "CTI",
+        protocol: "TCP",
+        severity: "CRITICAL",
+        badge: "APT-29 C2 Node",
+        description: "Simulates command-and-control connection to flagged CTI IP 198.51.100.77 (APT-29) and malware-threat-lab.local.",
+        target: "IP 198.51.100.77:443",
+        expected: "Backend CTI Engine Match & Incident Escalation to CRITICAL"
+      },
+      // BASELINE
+      {
+        id: "normal",
+        name: "Legitimate Baseline Traffic",
+        category: "HTTP",
+        protocol: "HTTP",
+        severity: "LOW",
+        badge: "Normal User Browsing",
+        description: "Generates realistic, benign user browsing and API queries against Juice Shop to establish clean baseline flow telemetry.",
+        target: "GET /api/Products, /rest/languages, /",
+        expected: "Zeek Baseline Logs (No IDS alerts triggered)"
+      },
+      {
+        id: "owasp_exploit",
+        name: "OWASP Multi-Stage Exploit",
+        category: "HTTP",
+        protocol: "HTTP",
+        severity: "CRITICAL",
+        badge: "Multi-Stage Attack",
+        description: "Executes Reconnaissance, SQL Injection, Credential Stuffing Brute Force, and HTTP Flood in a single sequence.",
+        target: "Multiple Juice Shop Endpoints",
+        expected: "Multiple Suricata Rules & Spark Anomalies"
+      }
+    ];
+
+    let currentFilter = 'ALL';
+    let totalAttacksFired = 0;
+
+    // Render Scenarios Cards
+    function renderCards() {
+      const grid = document.getElementById('scenarios-grid');
+      grid.innerHTML = '';
+
+      const filtered = SCENARIOS.filter(s => currentFilter === 'ALL' || s.category === currentFilter || s.protocol === currentFilter);
+
+      filtered.forEach(s => {
+        const sevColor = s.severity === 'CRITICAL' ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
+                         s.severity === 'HIGH' ? 'bg-orange-500/20 text-orange-300 border-orange-500/40' :
+                         s.severity === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
+                         'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+
+        const protoColor = s.protocol === 'TCP' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' :
+                          s.protocol === 'HTTP' ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' :
+                          s.protocol === 'UDP' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' :
+                          s.protocol === 'DNS' ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' :
+                          'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+
+        const card = document.createElement('div');
+        card.className = "glass-card p-5 rounded-xl border border-slate-800 hover:border-slate-700 transition flex flex-col justify-between";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${protoColor}">${s.protocol}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${sevColor}">${s.severity}</span>
+              </div>
+              <span class="text-[11px] font-mono text-slate-400">${s.badge}</span>
+            </div>
+
+            <h3 class="text-base font-bold text-white mt-3">${s.name}</h3>
+            <p class="text-xs text-slate-400 mt-2 line-clamp-3 leading-relaxed">${s.description}</p>
+
+            <div class="mt-4 pt-3 border-t border-slate-800/80 space-y-1.5 font-mono text-[11px]">
+              <div class="text-slate-400 flex items-center justify-between">
+                <span>Target:</span>
+                <span class="text-slate-200 truncate max-w-[200px]">${s.target}</span>
+              </div>
+              <div class="text-slate-400 flex items-start justify-between gap-2">
+                <span class="shrink-0">Expected Detection:</span>
+                <span class="text-rose-400 text-right font-medium">${s.expected}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-3 border-t border-slate-800">
+            <button onclick="launchAttack('${s.id}')" id="btn-${s.id}" class="btn-fire w-full py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold tracking-wider transition flex items-center justify-center gap-2">
+              <span>FIRE ATTACK</span>
+              <span>⚡</span>
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // Filter Buttons
+    function filterCategory(cat) {
+      currentFilter = cat;
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        if (b.dataset.cat === cat) {
+          b.className = "filter-btn px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40 font-mono";
+        } else {
+          b.className = "filter-btn px-3 py-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-white border border-slate-800 font-mono";
+        }
+      });
+      renderCards();
+    }
+
+    // Launch Single Attack
+    async function launchAttack(scenarioId) {
+      const btn = document.getElementById(`btn-${scenarioId}`);
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin mr-1">⏳</span> EXECUTING...`;
+      }
+
+      document.getElementById('exec-status').innerText = `RUNNING [${scenarioId.toUpperCase()}]`;
+      appendTerm(`\n[!] DISPATCHING ATTACK: ${scenarioId.toUpperCase()}`);
+
+      try {
+        const res = await fetch(`/api/launch/${scenarioId}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.status === 'SUCCESS') {
+          appendTerm(data.output || '[Attack executed successfully]');
+          totalAttacksFired++;
+          document.getElementById('attacks-count').innerText = totalAttacksFired;
+          document.getElementById('exec-status').innerText = "COMPLETED";
+        } else {
+          appendTerm(`[ERROR] ${data.error || 'Execution failed'}`, 'text-rose-400');
+          document.getElementById('exec-status').innerText = "ERROR";
+        }
+      } catch (err) {
+        appendTerm(`[NETWORK ERROR] Failed to contact attack engine: ${err.message}`, 'text-rose-500');
+        document.getElementById('exec-status').innerText = "FAILED";
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span>FIRE ATTACK</span> <span>⚡</span>`;
+        }
+      }
+    }
+
+    // Launch Full Campaign
+    async function launchCampaign() {
+      const banner = document.getElementById('campaign-banner');
+      const btnCamp = document.getElementById('btn-campaign');
+      banner.classList.remove('hidden');
+      btnCamp.disabled = true;
+      btnCamp.classList.add('opacity-50');
+
+      appendTerm("\n" + "=".repeat(65));
+      appendTerm("[*] INITIATING FULL MULTI-PROTOCOL RED TEAM ATTACK CAMPAIGN");
+      appendTerm("    Target: OWASP Juice Shop on http://localhost:3000");
+      appendTerm("    SOC Monitoring: http://localhost:8000");
+      appendTerm("=".repeat(65));
+
+      const campaignOrder = [
+        "normal", "port_scan", "tcp_exhaustion", "sqli", "brute_force",
+        "idor", "xss", "path_traversal", "http_burst", "dns_anomaly",
+        "dns_nxdomain", "udp_burst", "icmp_sweep", "ioc_test", "cti_suite"
+      ];
+
+      for (let i = 0; i < campaignOrder.length; i++) {
+        const scId = campaignOrder[i];
+        document.getElementById('campaign-progress').innerText = `Stage ${i+1} / ${campaignOrder.length}`;
+        document.getElementById('campaign-status-text').innerText = `Executing Stage ${i+1}: ${scId.toUpperCase()}`;
+        
+        await launchAttack(scId);
+        // Wait 1.2s between stages for network and Big Data micro-batches to settle
+        await new Promise(r => setTimeout(r, 1200));
+      }
+
+      appendTerm("\n[+] FULL MULTI-PROTOCOL CAMPAIGN COMPLETED SUCCESSFULLY!");
+      appendTerm("[*] Open http://localhost:8000 to observe real-time correlated alerts & incident records.");
+      banner.classList.add('hidden');
+      btnCamp.disabled = false;
+      btnCamp.classList.remove('opacity-50');
+    }
+
+    // Terminal Helpers
+    function appendTerm(msg, customClass = null) {
+      const term = document.getElementById('terminal-output');
+      const line = document.createElement('pre');
+      line.className = customClass || "text-slate-300 font-mono whitespace-pre-wrap leading-relaxed";
+      line.innerText = msg;
+      term.appendChild(line);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function clearTerminal() {
+      const term = document.getElementById('terminal-output');
+      term.innerHTML = '<div class="text-slate-500">[System] Terminal cleared. Ready for next scenario.</div>';
+    }
+
+    // Target Health Probe
+    async function checkTargetHealth() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const dot = document.getElementById('target-health-dot');
+        const lbl = document.getElementById('target-url-label');
+        if (data.target_online) {
+          dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+          lbl.innerText = data.target_url;
+        } else {
+          dot.className = "w-2 h-2 rounded-full bg-rose-500";
+        }
+      } catch (e) {}
+    }
+
+    // Init
+    renderCards();
+    checkTargetHealth();
+    setInterval(checkTargetHealth, 6000);
+  </script>
+</body>
+</html>
